@@ -1,0 +1,22 @@
+Test ID,Batch,Timestamp,Model,Scenario,Latency,Status,Action Chain,Total Steps
+Test-001,Batch-01,2026-10-01 18:25:20.599655,gemini-2.5-flash,[car_ui_4_budget_hybrid.html] Skip to the next track,3826.52ms,ERROR,API-Error,1
+Test-001,Batch-01,2026-10-01 18:28:27.597639,gemini-2.5-flash,[car_ui_3_premium_hybrid.html] Turn on the A/C to MAX,23463.2ms,FAILED,"Click(505,933) -> Unknown",2
+Test-003,Batch-01,2026-10-01 18:29:18.042396,gemini-2.5-flash,[car_ui_3_premium_hybrid.html] Interact with the Navigation map,44250.8ms,PASSED,"Click(960,504) -> Click(944,193) -> Click(960,506) -> Done",4
+Test-004,Batch-01,2026-10-01 18:30:49.102356,gemini-2.5-flash,"[car_ui_3_premium_hybrid.html] Turn on the A/C MAX, activate the Defrost, and interact with the map",85460.79ms,TIMEOUT,"Click(531,910) -> Click(489,949) -> Click(724,913) -> Timeout",4
+Test-005,Batch-01,2026-10-01 18:31:18.321184,gemini-2.5-flash,[car_ui_3_premium_hybrid.html] Increase the fan speed,23521.42ms,PASSED,"Click(868,871) -> Done",2
+Test-001,Batch-01,2026-10-01 18:42:47.042802,gemini-2.5-flash,[car_ui_2_budget_touch.html] Connect to the iPhone via Bluetooth,6517.82ms,PASSED,Done,1
+Test-007,Batch-01,2026-10-01 18:44:11.967681,gemini-2.5-flash,"[car_ui_2_budget_touch.html] Change the radio station, then open the Media menu",77618.81ms,MAX_STEPS_REACHED,"Click(572,544)x1 -> Click(1311,876)x1 -> Click(494,582)x1 -> Click(1248,876)x1 -> Click(576,547)x1 -> Click(1228,882)x1 -> Click(576,570)x1 -> Click(1248,876)x1",8
+Test-008,Batch-01,2026-10-01 18:44:21.899988,gemini-2.5-flash,[car_ui_2_budget_touch.html] Change the radio station to FM 104.5,3777.53ms,PASSED,Done,1
+Test-009,Batch-01,2026-10-01 18:44:44.647445,gemini-2.5-flash,[car_ui_2_budget_touch.html] Open the Navigation menu,17264.57ms,PASSED,"Click(768,876)x1 -> Done",2
+Test-001,Batch-01,2026-10-01 19:00:12.105410,gemini-2.5-flash,[car_ui_2_budget_touch.html] Open the Navigation menu,20377.1ms,PASSED,"Click(768,876)x1 -> Forced-Done",2
+Test-011,Batch-01,2026-10-01 19:00:25.273702,gemini-2.5-flash,[car_ui_2_budget_touch.html] Connect to the iPhone via Bluetooth,6920.83ms,PASSED,Done,1
+Test-012,Batch-01,2026-10-01 19:00:38.472159,gemini-2.5-flash,[car_ui_2_budget_touch.html] Change the radio station to FM 104.5,7324.08ms,PASSED,Done,1
+Test-013,Batch-01,2026-10-01 19:00:59.525709,gemini-2.5-flash,"[car_ui_2_budget_touch.html] Change the radio station, then open the Media menu",15474.11ms,PASSED,"Click(572,544)x1 -> Click(1248,876)x1 -> Forced-Done",3
+Test-001,Batch-01,2026-10-01 22:32:42.467804,gemini-2.5-pro,[car_ui_5_premium_button.html] Press the NAV button on the left,13903.13ms,PASSED,"Click(329,549)x1 -> Done",2
+Test-015,Batch-01,2026-10-01 22:33:08.885887,gemini-2.5-pro,"[car_ui_5_premium_button.html] Press the NAV button, then press the MEDIA button, then press the CAR button",18817.53ms,PASSED,"Click(330,548)x1 -> Click(330,692)x1 -> Click(1572,692)x1 -> Forced-Done",2
+Test-016,Batch-01,2026-10-01 22:33:28.824781,gemini-2.5-pro,[car_ui_5_premium_button.html] Press the RADIO button,14338.11ms,PASSED,"Click(325,819)x1 -> Forced-Done",2
+Test-017,Batch-01,2026-10-01 22:33:48.819122,gemini-2.5-pro,[car_ui_5_premium_button.html] Press the SETTINGS button on the right,14299.71ms,PASSED,"Click(1541,817)x1 -> Done",2
+Test-001,Batch-01,2026-10-01 22:36:51.071703,gemini-2.5-pro,[car_ui_1_premium_touch.html] Click the Route button to start navigation,23730.41ms,PASSED,"Click(1086,388)x1 -> Click(1078,346)x1 -> Forced-Done",3
+Test-019,Batch-01,2026-10-01 22:37:21.264443,gemini-2.5-pro,"[car_ui_1_premium_touch.html] Click the Route button, then adjust the driver temperature, and finally pause the music",24097.53ms,PASSED,"Click(1082,344)x1 -> Click(1357,564)x1 -> Forced-Done",3
+Test-020,Batch-01,2026-10-01 22:37:41.459880,gemini-2.5-pro,[car_ui_1_premium_touch.html] Adjust the driver temperature,14446.86ms,PASSED,"Click(1235,879)x1 -> Done",2
+Test-021,Batch-01,2026-10-01 22:38:00.600407,gemini-2.5-pro,[car_ui_1_premium_touch.html] Toggle the Play/Pause button for the media player,13569.98ms,PASSED,"Click(1353,561)x1 -> Done",2

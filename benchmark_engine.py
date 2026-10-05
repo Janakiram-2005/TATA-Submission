@@ -44,7 +44,7 @@ except Exception:
 pyautogui.FAILSAFE = False
 
 DEBUG_MODE = True
-MODEL_NAME = 'gemini-2.5-flash'  # High-speed multi-step model
+MODEL_NAME = 'gemini-2.5-pro'  # High-speed multi-step model
 
 class VLMOverlay:
     def __init__(self):
@@ -103,9 +103,9 @@ async def ask_vlm_next_action(img_path, task_prompt, previous_actions):
         "Analyze the User Task, verify the current screen state, and execute the NEXT logical step. "
         "You have native spatial understanding. To interact with an element, output its 2D bounding box in normalized [ymin, xmin, ymax, xmax] format (0-1000 scale).\n\n"
         "You MUST reply in exactly TWO lines:\n"
-        "1. A THOUGHT line starting with 'THOUGHT: ' explaining what you see, what you did previously (memory), and what you need to do next.\n"
-        "2. The COMMAND line with exactly ONE of these commands:\n"
-        "   - CLICK [ymin, xmin, ymax, xmax]\n"
+        "1. A THOUGHT line starting with 'THOUGHT: ' explaining what you see, what you did previously (memory), and what you need to do next. Keep this UNDER 20 WORDS.\n"
+        "2. The COMMAND line. You can execute MULTIPLE clicks on the SAME static page by separating them with commas. Append 'xN' for multiple clicks at the same spot.\n"
+        "   - CLICK [ymin, xmin, ymax, xmax] x<COUNT> (e.g. CLICK [box] x3, CLICK [box2])\n"
         "   - TYPE [ymin, xmin, ymax, xmax] <TEXT>\n"
         "   - DRAG [y1, x1, y2, x2] TO [y3, x3, y4, x4] (Used to drag an object to a target zone)\n"
         "   - COPY [ymin, xmin, ymax, xmax] (Double-clicks the coordinates to highlight text, then hits Ctrl+C)\n"
@@ -123,58 +123,79 @@ async def ask_vlm_next_action(img_path, task_prompt, previous_actions):
     with open(img_path, 'rb') as f:
         img_bytes = f.read()
         
-    def _call_api():
-        for attempt in range(3):
-            try:
-                return client.models.generate_content(
-                    model=MODEL_NAME,
-                    contents=[
-                        types.Part.from_bytes(data=img_bytes, mime_type='image/jpeg'),
-                        instruction + "\n\nUser Task: " + task_prompt
-                    ]
+    for attempt in range(3):
+        try:
+            response = await client.aio.models.generate_content(
+                model=MODEL_NAME,
+                contents=[
+                    types.Part.from_bytes(data=img_bytes, mime_type='image/jpeg'),
+                    instruction + "\n\nUser Task: " + task_prompt
+                ],
+                config=types.GenerateContentConfig(
+                    temperature=0.0,
+                    max_output_tokens=150,
                 )
-            except Exception as e:
-                if '429' in str(e) and attempt < 2:
-                    print("⚠️ API RATE LIMIT (429). Retrying in 10 seconds...")
-                    time.sleep(10)
-                else:
-                    raise e
-                    
-    loop = asyncio.get_running_loop()
-    response = await loop.run_in_executor(None, _call_api)
-    return response.text.strip()
+            )
+            return response.text.strip()
+        except Exception as e:
+            if '429' in str(e) and attempt < 2:
+                print("⚠️ API RATE LIMIT (429). Retrying in 10 seconds...")
+                await asyncio.sleep(10)
+            else:
+                raise e
 
 # Global state for Test ID tracking across batches
 GLOBAL_TEST_ID = 1
 
 def log_to_sheets(batch_id, model_name, scenario, total_time_ms, status, action_chain, total_steps):
     global GLOBAL_TEST_ID
+    import csv
+    
+    # Save to local CSV as a different spreadsheet
+    csv_file = 'car_ui_results.csv'
+    file_exists = os.path.exists(csv_file)
+    
+    chain_str = " -> ".join(action_chain) if action_chain else "None"
+    row = [
+        f"Test-{GLOBAL_TEST_ID:03d}",
+        f"Batch-{batch_id:02d}",
+        str(datetime.datetime.now()), 
+        model_name, 
+        scenario, 
+        f"{abs(round(total_time_ms, 2))}ms", 
+        status, 
+        chain_str, 
+        total_steps
+    ]
+    
+    try:
+        with open(csv_file, mode='a', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            if not file_exists:
+                writer.writerow(['Test ID', 'Batch', 'Timestamp', 'Model', 'Scenario', 'Latency', 'Status', 'Action Chain', 'Total Steps'])
+            writer.writerow(row)
+        print(f"[DATABASE] Logged {status} to local CSV (car_ui_results.csv) as Test-{GLOBAL_TEST_ID:03d}")
+    except Exception as e:
+        print("[LOG ERROR]", e)
+
     try:
         gc = gspread.service_account(filename='convertionalai-d8da9e4d43dd.json')
-        sh = gc.open_by_key('1eJ5PPHPvCbedRuLo-u1Wk9IYL6OdkJf36pzy87KuynY')
-        worksheet = sh.sheet1
+        sh = gc.open_by_key('1NAu0Syl4AYeGpgmOps32l6Tkc2AZcHED4SoFcqJM5wk')
+        try:
+            worksheet = sh.worksheet('CarUI_Results')
+        except gspread.exceptions.WorksheetNotFound:
+            worksheet = sh.add_worksheet(title='CarUI_Results', rows="1000", cols="20")
+            worksheet.append_row(['Test ID', 'Batch', 'Timestamp', 'Model', 'Scenario', 'Latency', 'Status', 'Action Chain', 'Total Steps'])
         
         if GLOBAL_TEST_ID == 1:
             records = worksheet.get_all_values()
             GLOBAL_TEST_ID = max(1, len(records)) 
             
-        chain_str = " -> ".join(action_chain) if action_chain else "None"
-        row = [
-            f"Test-{GLOBAL_TEST_ID:03d}",
-            f"Batch-{batch_id:02d}",
-            str(datetime.datetime.now()), 
-            model_name, 
-            scenario, 
-            f"{abs(round(total_time_ms, 2))}ms", 
-            status, 
-            chain_str, 
-            total_steps
-        ]
         worksheet.append_row(row)
-        print(f"[DATABASE] Logged {status} to Google Sheets as Test-{GLOBAL_TEST_ID:03d}")
-        GLOBAL_TEST_ID += 1
     except Exception as e:
-        print("[LOG ERROR]", e)
+        pass
+        
+    GLOBAL_TEST_ID += 1
 
 def extract_coords_from_array(array_str, screen_w, screen_h):
     nums = re.findall(r'\d+', array_str)
@@ -242,15 +263,15 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
                 base_command = 'DRAG'
             else:
                 # Highly forgiving regex but requires brackets so words in THOUGHT line don't trigger it
-                click_match = re.search(r'CLICK\s*\[([\d,\s]+)\]', raw_upper, re.MULTILINE)
+                click_matches = list(re.finditer(r'CLICK\s*\[([\d,\s]+)\](?:\s*[xX]\s*(\d+))?', raw_upper))
                 type_match = re.search(r'TYPE\s*\[([\d,\s]+)\](?:\s+(.*))?', raw_upper, re.MULTILINE)
                 copy_match = re.search(r'COPY\s*\[([\d,\s]+)\]', raw_upper, re.MULTILINE)
                 paste_match = re.search(r'PASTE\s*\[([\d,\s]+)\]', raw_upper, re.MULTILINE)
                 hover_match = re.search(r'HOVER\s*\[([\d,\s]+)\]', raw_upper, re.MULTILINE)
                 
-                if click_match:
-                    base_command = 'CLICK'
-                    array_str = click_match.group(1)
+                if click_matches:
+                    base_command = 'MULTI_CLICK'
+                    clicks_data = [(m.group(1), int(m.group(2)) if m.group(2) else 1) for m in click_matches]
                 elif type_match:
                     base_command = 'TYPE'
                     array_str = type_match.group(1)
@@ -337,41 +358,50 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
                     status = "ERROR"
                     break
 
-            elif base_command == "CLICK":
-                px, py = extract_coords_from_array(array_str, overlay.screen_width, overlay.screen_height)
-                if px is not None:
-                    action_str = f"Click({px},{py})"
-                    
-                    is_repetitive = False
-                    if len(action_chain) > 0 and action_chain[-1].startswith("Click("):
-                        last_coords = re.findall(r'\d+', action_chain[-1])
-                        if len(last_coords) >= 2:
-                            last_px, last_py = int(last_coords[0]), int(last_coords[1])
-                            if math.hypot(px - last_px, py - last_py) < 40:
-                                is_repetitive = True
-                                
-                    if is_repetitive:
-                        print("⚠️ REPETITIVE ACTION (JITTER) DETECTED! Forcing DONE to prevent infinite loop.")
-                        action_chain.append("Forced-Done")
-                        overlay.update_ui(status_text="VERIFIED DONE (Forced)", status_color="#3fb950", result_text="PASSED", result_color="#3fb950")
-                        status = "PASSED"
-                        trajectory_buffer.append({
-                            "step": step_count,
-                            "image": sct_img,
-                            "action_label": "DONE",
-                            "history": list(action_chain)
-                        })
+            elif base_command == "MULTI_CLICK":
+                for array_str, count in clicks_data:
+                    px, py = extract_coords_from_array(array_str, overlay.screen_width, overlay.screen_height)
+                    if px is not None:
+                        action_str = f"Click({px},{py})x{count}"
+                        
+                        is_repetitive = False
+                        if len(clicks_data) == 1:
+                            for past_action in action_chain[-3:]:
+                                if past_action.startswith("Click("):
+                                    last_coords = re.findall(r'\d+', past_action)
+                                    if len(last_coords) >= 2:
+                                        last_px, last_py = int(last_coords[0]), int(last_coords[1])
+                                        if math.hypot(px - last_px, py - last_py) < 40:
+                                            is_repetitive = True
+                                            break
+                                    
+                        if is_repetitive:
+                            print("⚠️ REPETITIVE ACTION (JITTER) DETECTED! Forcing DONE to prevent infinite loop.")
+                            action_chain.append("Forced-Done")
+                            overlay.update_ui(status_text="VERIFIED DONE (Forced)", status_color="#3fb950", result_text="PASSED", result_color="#3fb950")
+                            status = "PASSED"
+                            trajectory_buffer.append({
+                                "step": step_count,
+                                "image": sct_img,
+                                "action_label": "DONE",
+                                "history": list(action_chain)
+                            })
+                            break
+                            
+                        action_chain.append(action_str)
+                        overlay.update_ui(status_text=f"CLICKING {px},{py} {count}x", status_color="#3fb950")
+                        
+                        pyautogui.moveTo(px, py, duration=0.2)
+                        for _ in range(count):
+                            pyautogui.click()
+                            time.sleep(0.1)
+                        time.sleep(1)
+                    else:
+                        action_chain.append("Failed-Parse")
+                        status = "ERROR"
                         break
                         
-                    action_chain.append(action_str)
-                    overlay.update_ui(status_text=f"CLICKING {px},{py}", status_color="#3fb950")
-                    
-                    pyautogui.moveTo(px, py, duration=0.2)
-                    pyautogui.click()
-                    time.sleep(1)
-                else:
-                    action_chain.append("Failed-Parse")
-                    status = "ERROR"
+                if status in ["PASSED", "ERROR"]:
                     break
                     
             elif base_command == "TYPE":
@@ -520,82 +550,64 @@ async def execute_multi_step_test(overlay, batch_id, scenario):
 def run_batch_loop(overlay, total_batches):
     
     SCENARIO_BANK = {
-        'test_ui_3.html': {
+        'car_ui_1_premium_touch.html': {
             'normal': [
-                "Select Express Shipping method",
-                "Check the agree to Terms of Service box",
-                "Type 'John' in the First Name field",
-                "Click the Place Order button"
+                "Click the Route button to start navigation",
+                "Toggle the Play/Pause button for the media player",
+                "Adjust the driver temperature"
             ],
             'difficult': [
-                "Type 'jane@example.com' in the email, select Overnight Shipping, check the TOS box, and place the order"
+                "Click the Route button, then adjust the driver temperature, and finally pause the music"
             ]
         },
-        'test_ui_4.html': {
+        'car_ui_2_budget_touch.html': {
             'normal': [
-                "Drag the Blue Box labeled BOX into Target Zone A",
-                "Slide the verification button to the extreme right to solve the captcha"
+                "Change the radio station to FM 104.5",
+                "Connect to the iPhone via Bluetooth",
+                "Open the Navigation menu"
             ],
             'difficult': [
-                "Drag the Blue Box into Target Zone B AND then slide the captcha to the right"
+                "Change the radio station, then open the Media menu"
             ]
         },
-        'test_ui_5.html': {
+        'car_ui_3_premium_hybrid.html': {
             'normal': [
-                "Drag TKT-101 to the In Progress column",
-                "Drag TKT-103 to the Done column"
+                "Interact with the Navigation map",
+                "Turn on the A/C to MAX",
+                "Increase the fan speed"
             ],
             'difficult': [
-                "Drag TKT-102 into In Progress AND drag TKT-103 into Done"
+                "Turn on the A/C MAX, activate the Defrost, and interact with the map"
             ]
         },
-        'test_ui_6.html': {
+        'car_ui_4_budget_hybrid.html': {
             'normal': [
-                "Switch to the Security tab and toggle Two-Factor Auth",
-                "Switch to the Billing tab and select Annual Plan",
-                "Switch to the Billing tab and click Save Changes"
+                "Skip to the next track",
+                "Adjust the Volume using the left knob",
+                "Select Preset 3"
             ],
             'difficult': [
-                "Switch to Billing, select Annual Plan, and then click Save Changes"
+                "Adjust the Volume, select Preset 4, and skip to the next track"
             ]
         },
-        'test_ui_7.html': {
+        'car_ui_5_premium_button.html': {
             'normal': [
-                "Type 'Analyze my code' in the input text area and click Send",
-                "Click the Bug Fix #402 button in the sidebar",
-                "Click the red Clear History button"
+                "Press the NAV button on the left",
+                "Press the SETTINGS button on the right",
+                "Press the RADIO button"
             ],
             'difficult': [
-                "Click Bug Fix #402, then type 'Fix the memory leak' in the chat and hit Send"
+                "Press the NAV button, then press the MEDIA button, then press the CAR button"
             ]
         },
-        'test_ui_8.html': {
+        'car_ui_6_screenless.html': {
             'normal': [
-                "Click the 'See more like this' link for the Samsung Monitor",
-                "Check the 'Sony' checkbox in the Brand filter",
-                "Type 'Gaming Laptop' into the search bar and click the search icon button",
-                "Click the 'Add to cart' button for the LG OLED TV"
+                "Adjust the Driver Temperature using the left knob",
+                "Toggle the Hazards button",
+                "Turn the Media Dial OK button"
             ],
             'difficult': [
-                "Check the Apple brand filter, click 4 Stars & Up, and then click Add to cart for the Macbook"
-            ]
-        },
-        'test_ui_9.html': {
-            'normal': [
-                "Hover over the email from 'HR Department' to reveal the hidden menu, and click the Delete button",
-                "Hover over the email from 'AWS' and click Archive"
-            ],
-            'difficult': [
-                "Copy the Tracking ID text from the FedEx email, and Paste it into the top search bar"
-            ]
-        },
-        'test_ui_10.html': {
-            'normal': [
-                "Click the 'Insert' tab in the top ribbon",
-                "Look up the Revenue for Q3 in the table, copy it, and paste it into the 'Q3 Raw Revenue' input box"
-            ],
-            'difficult': [
-                "Copy the Revenue for Q3, paste it into the 'Q3 Raw Revenue' input box, and then click the Submit Audit Request button"
+                "Adjust the Driver Temp, turn on the A/C, and press the Media Dial"
             ]
         }
     }
@@ -661,4 +673,5 @@ if __name__ == "__main__":
     import threading
     threading.Thread(target=run_batch_loop, args=(app, total_batches), daemon=True).start()
     app.root.mainloop()
+
 

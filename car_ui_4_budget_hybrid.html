@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Car UI - Budget Hybrid (Screen + Knobs)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background: #0f172a; color: #f8fafc; padding: 40px; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        #toast { position: fixed; top: 40px; left: 50%; transform: translateX(-50%); background: #10b981; color: white; padding: 15px 30px; border-radius: 30px; display: none; font-weight: bold; z-index: 50; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .interactive { cursor: pointer; transition: all 0.2s; }
+        .interactive:hover { filter: brightness(1.2); transform: scale(1.02); }
+        .interactive:active { transform: scale(0.95); }
+    </style>
+</head>
+<body>
+    <div id="toast">Action Registered!</div>
+    
+    <button onclick="runAutoTest()" class="fixed top-4 right-4 bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 px-4 rounded-full shadow-lg z-50 transition-all flex items-center gap-2 border-2 border-purple-400">
+        <span>🤖</span> Auto Test UI
+    </button>
+    
+    <div class="w-full max-w-5xl bg-slate-800 border border-slate-900 p-6 rounded-xl shadow-lg max-w-3xl w-full">
+        <!-- Dashboard Header -->
+        <div class="flex justify-between items-center mb-6 ">
+            <h1 class="text-2xl font-bold text-cyan-400">Budget Hybrid (Screen + Knobs)</h1>
+            <div class="flex gap-4 text-sm font-mono text-slate-400">
+                <span>10:42 AM</span>
+                <span>72°F Outside</span>
+                <span>5G LTE</span>
+            </div>
+        </div>
+
+        <!-- Main UI -->
+        
+        <div class="flex flex-col gap-8">
+            <!-- Basic Display -->
+            <div class="h-[250px] bg-blue-900/40 border-2 border-blue-500/50 rounded-lg flex items-center justify-center interactive" onclick="showToast('Track Skipped')">
+                <div class="text-center text-blue-100">
+                    <p class="text-sm font-mono mb-2">Track 04 / USB</p>
+                    <h2 class="text-3xl font-bold mb-4">Hotel California</h2>
+                    <div class="flex gap-4 justify-center text-xl">
+                        <span>⏪</span><span>▶️</span><span>⏩</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Rotary Knobs Row -->
+            <div class="flex justify-around items-center bg-slate-900 p-6 rounded-lg">
+                <div class="w-24 h-24 rounded-full bg-slate-700 border-4 border-slate-600 shadow-xl flex items-center justify-center interactive" onclick="showToast('Volume Changed')">
+                    <span class="text-slate-300 font-bold text-xs uppercase">Vol</span>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                    <button class="bg-slate-700 text-white font-bold p-3 rounded shadow interactive" onclick="showToast('Preset 1')">1</button>
+                    <button class="bg-slate-700 text-white font-bold p-3 rounded shadow interactive" onclick="showToast('Preset 2')">2</button>
+                    <button class="bg-slate-700 text-white font-bold p-3 rounded shadow interactive" onclick="showToast('Preset 3')">3</button>
+                    <button class="bg-slate-700 text-white font-bold p-3 rounded shadow interactive" onclick="showToast('Preset 4')">4</button>
+                    <button class="bg-slate-700 text-white font-bold p-3 rounded shadow interactive" onclick="showToast('Preset 5')">5</button>
+                    <button class="bg-slate-700 text-white font-bold p-3 rounded shadow interactive" onclick="showToast('Preset 6')">6</button>
+                </div>
+                <div class="w-24 h-24 rounded-full bg-slate-700 border-4 border-slate-600 shadow-xl flex items-center justify-center interactive" onclick="showToast('Tuning Changed')">
+                    <span class="text-slate-300 font-bold text-xs uppercase">Tune</span>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+
+    <script>
+        function showToast(msg) {
+            let t = document.getElementById('toast');
+            t.innerText = "✅ " + msg;
+            t.style.display = 'block';
+            setTimeout(() => t.style.display = 'none', 2000);
+        }
+
+        async function runAutoTest() {
+            const elements = document.querySelectorAll('.interactive');
+            const btn = document.querySelector('button[onclick="runAutoTest()"]');
+            btn.innerHTML = '<span>⏳</span> Testing...';
+            btn.disabled = true;
+            
+            for (let i = 0; i < elements.length; i++) {
+                const el = elements[i];
+                // Highlight
+                const originalOutline = el.style.outline;
+                const originalTransform = el.style.transform;
+                el.style.outline = '4px solid #a855f7';
+                el.style.outlineOffset = '2px';
+                el.style.transform = 'scale(1.05)';
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                
+                await new Promise(r => setTimeout(r, 500));
+                
+                // Simulate click
+                el.click();
+                
+                await new Promise(r => setTimeout(r, 1200));
+                
+                // Restore
+                el.style.outline = originalOutline;
+                el.style.transform = originalTransform;
+                await new Promise(r => setTimeout(r, 300));
+            }
+            
+            btn.innerHTML = '<span>✅</span> Test Complete';
+            setTimeout(() => {
+                btn.innerHTML = '<span>🤖</span> Auto Test UI';
+                btn.disabled = false;
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
